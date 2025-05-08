@@ -320,19 +320,23 @@ std::wstring GetFirstLanAdapterName() {
 	ULONG uReturn = 0;
 
 	if (pEnumerator) {
-		hr = pEnumerator->Next(WBEM_INFINITE, 1, &pclsObj, &uReturn);
+		VARIANT vtProp;
+		VariantInit(&vtProp);
 
-		if (SUCCEEDED(hr) && uReturn == 1) {
-			VARIANT vtProp;
-			VariantInit(&vtProp);
-
-			// Get the NetConnectionID property
-			hr = pclsObj->Get(L"NetConnectionID", 0, &vtProp, 0, 0);
+		while (pEnumerator->Next(WBEM_INFINITE, 1, &pclsObj, &uReturn) == S_OK && uReturn == 1) {
+			HRESULT hr = pclsObj->Get(L"NetConnectionID", 0, &vtProp, 0, 0);
 			if (SUCCEEDED(hr) && vtProp.vt == VT_BSTR && vtProp.bstrVal != NULL) {
 				adapterName = vtProp.bstrVal;
-				VariantClear(&vtProp);
+
+				// If it's "Ethernet", stop searching
+				if (adapterName == L"Ethernet") {
+					VariantClear(&vtProp);
+					pclsObj->Release();
+					break;
+				}
 			}
 
+			VariantClear(&vtProp);
 			pclsObj->Release();
 		}
 
